@@ -21,7 +21,12 @@ authRouter.post('/login', async (req, res) => {
   const ok = await verifyPassword(password, user.password_hash)
   if(!ok) return res.status(401).json({ message:'Invalid credentials' })
 
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ message: 'JWT_SECRET is not configured' })
+  }
+
   const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' })
+
 
   res.json({
     token,
