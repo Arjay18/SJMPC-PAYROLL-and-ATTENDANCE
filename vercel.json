@@ -1,5 +1,10 @@
 {
   "version": 2,
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 10
+    }
+  },
   "headers": [
     {
       "source": "/api/(.*)",
@@ -18,8 +23,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/client/$1",
-      "check": true
+      "destination": "/client/$1"
     }
   ]
 }
