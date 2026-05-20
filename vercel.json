@@ -21,7 +21,10 @@
 
 
 
+  "publicDirectory": "client/dist",
+
   "rewrites": [
+
     {
       "source": "/api/(.*)",
       "destination": "/index.js"
