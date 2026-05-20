@@ -13,7 +13,8 @@
       ]
     }
   ],
-  "installCommand": "cd client && npm install",
+  "installCommand": "cd client && npm install --ignore-scripts",
+
   "buildCommand": "cd client && npm run build",
 
 
