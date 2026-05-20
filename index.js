@@ -12,8 +12,10 @@ module.exports = async (req, res) => {
   }
 
   // Avoid Express hanging on serverless environments
+  // Express error handling might depend on having res.locals, etc.
   return expressApp(req, res)
 }
+
 
 
 
