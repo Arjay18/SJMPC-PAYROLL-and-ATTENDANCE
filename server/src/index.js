@@ -38,6 +38,14 @@ app.use('/employee', employeeRouter)
 app.use('/travel', travelRouter)
 app.use('/overtime', overtimeRouter)
 
+// Safety net: avoid crashes when downstream code expects req.user.
+app.use((req, res, next) => {
+  if (req.user === undefined) {
+    // Let public routes handle their own auth requirements.
+    return res.status(401).json({ message: 'Unauthorized' })
+  }
+  return next()
+})
 
 // In serverless environments (Vercel), do not start a listener.
 if (!process.env.VERCEL) {
@@ -47,6 +55,7 @@ if (!process.env.VERCEL) {
     console.log(`Server running on http://localhost:${port}`)
   })
 }
+
 
 
 // Helpful for debugging in dev
