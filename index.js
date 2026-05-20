@@ -10,7 +10,10 @@ module.exports = async (req, res) => {
     res.status(500).json({ message: 'Express app not exported from server/src/index.js' })
     return
   }
+
+  // Avoid Express hanging on serverless environments
   return expressApp(req, res)
 }
+
 
 
