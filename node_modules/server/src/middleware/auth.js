@@ -8,14 +8,19 @@ export async function requireAuth(req, res, next){
 
   try{
     const payload = jwt.verify(token, process.env.JWT_SECRET)
-    req.user = payload
-    const me = await getOne(`SELECT id, email, role, employee_id, name FROM users WHERE id=?`, [payload.userId])
+    const me = await getOne(
+      `SELECT id, email, role, employee_id, name FROM users WHERE id=?`,
+      [payload.userId]
+    )
     if(!me) return res.status(401).json({ message:'Invalid user' })
+
+    // Always set req.user to a user object (must contain .role)
     req.user = me
     next()
   }catch{
     res.status(401).json({ message:'Invalid token' })
   }
+
 }
 
 export function requireRole(role){
