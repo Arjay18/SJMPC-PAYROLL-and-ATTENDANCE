@@ -2,9 +2,15 @@
 // It loads the Express app from your ESM server and forwards the request.
 
 module.exports = async (req, res) => {
-  const app = await import('./server/src/index.js')
-  // server/src/index.js exports `app` by default as side-effect; for safety support both shapes
-  const expressApp = app?.default ?? app
+  // Vercel must not start a separate listener. server/src/index.js currently calls app.listen.
+  // Instead, forward to an Express app export. (server/src/index.js should export the app.)
+  const mod = await import('./server/src/index.js')
+  const expressApp = mod?.default
+  if (!expressApp) {
+    res.status(500).json({ message: 'Express app not exported from server/src/index.js' })
+    return
+  }
   return expressApp(req, res)
 }
+
 
