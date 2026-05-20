@@ -14,7 +14,8 @@
     }
   ],
   "installCommand": "npm install",
-  "buildCommand": "npm run build -w client --if-present",
+  "buildCommand": "cd client && npm run build",
+
 
   "rewrites": [
     {
