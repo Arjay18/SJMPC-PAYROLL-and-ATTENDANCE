@@ -2,31 +2,50 @@ import sqlite3 from 'sqlite3'
 import fs from 'fs'
 import path from 'path'
 import dotenv from 'dotenv'
-import { hashPassword } from './password.js'
 
-// If DATABASE_URL is configured, auth/data should be handled by Neon/Postgres module.
-// This file remains as SQLite fallback.
+import { hashPassword } from './password.js'
+import { initNeonDb, getPool } from './neonDb.js'
+
+// Neon is enabled when DATABASE_URL is set.
+function isNeon() {
+  return !!process.env.DATABASE_URL
+}
+
 
 dotenv.config()
 
-let db
+let dbMode = process.env.DATABASE_URL ? 'neon' : 'sqlite'
 
-export async function initDb(){
+// SQLite fallback connection
+let sqliteDb
+
+function ensureNeonPool() {
+  return getPool()
+}
+
+function isNeon() {
+  return dbMode === 'neon'
+}
+
+export async function initDb() {
+  // Backward-compatible initializer: initNeonDb if configured, else SQLite.
+  if (isNeon()) return initNeonDb()
   const dbPath = process.env.DB_PATH || './data/payroll.db'
   const abs = path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath)
   const dir = path.dirname(abs)
-  if(!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive:true })
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 
-  db = await new Promise((resolve, reject) => {
+  sqliteDb = await new Promise((resolve, reject) => {
     const instance = new sqlite3.Database(abs, (err) => {
-      if(err) reject(err)
+      if (err) reject(err)
       else resolve(instance)
     })
   })
 
-  await run(`PRAGMA foreign_keys = ON;`)
+  await sqliteRun(`PRAGMA foreign_keys = ON;`)
 
-  await run(`
+  // --- Schema for SQLite fallback (unchanged from your original) ---
+  await sqliteRun(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
@@ -38,7 +57,7 @@ export async function initDb(){
     );
   `)
 
-  await run(`
+  await sqliteRun(`
     CREATE TABLE IF NOT EXISTS employees (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER UNIQUE,
@@ -53,12 +72,29 @@ export async function initDb(){
     );
   `)
 
+  async function addColumnIfMissing(table, columnName, definition) {
+    const currentColumns = await sqliteAll(`PRAGMA table_info(${table})`)
+    if (!currentColumns.some((c) => c.name === columnName)) {
+      await sqliteRun(`ALTER TABLE ${table} ADD COLUMN ${columnName} ${definition}`)
+    }
+  }
+
+  async function ensureTableConstraint(tableName, oldCheckSql, newTableSql, columns) {
+    const row = await sqliteGet(`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`, [tableName])
+    if (row?.sql?.includes(oldCheckSql)) {
+      await sqliteRun(`ALTER TABLE ${tableName} RENAME TO ${tableName}_old`)
+      await sqliteRun(newTableSql)
+      await sqliteRun(`INSERT INTO ${tableName} (${columns}) SELECT ${columns} FROM ${tableName}_old`)
+      await sqliteRun(`DROP TABLE ${tableName}_old`)
+    }
+  }
+
   await addColumnIfMissing('employees', 'job_position', 'TEXT')
   await addColumnIfMissing('users', 'is_default_password', 'INTEGER DEFAULT 0')
   await addColumnIfMissing('employees', 'branch', 'TEXT')
   await addColumnIfMissing('employees', 'leave_credits', 'REAL DEFAULT 15.0')
 
-  await run(`
+  await sqliteRun(`
     CREATE TABLE IF NOT EXISTS attendance (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       employee_id INTEGER NOT NULL,
@@ -85,7 +121,7 @@ export async function initDb(){
     'id, employee_id, date, status, check_in_time, check_out_time'
   )
 
-  await run(`
+  await sqliteRun(`
     CREATE TABLE IF NOT EXISTS payrolls (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       employee_id INTEGER NOT NULL,
@@ -108,35 +144,18 @@ export async function initDb(){
     );
   `)
 
-  async function addColumnIfMissing(table, columnName, definition) {
-    const currentColumns = await all(`PRAGMA table_info(${table})`)
-    if (!currentColumns.some(c => c.name === columnName)) {
-      await run(`ALTER TABLE ${table} ADD COLUMN ${columnName} ${definition}`)
-    }
-  }
-
-  async function ensureTableConstraint(tableName, oldCheckSql, newTableSql, columns) {
-    const row = await getOne(`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`, [tableName])
-    if (row?.sql?.includes(oldCheckSql)) {
-      await run(`ALTER TABLE ${tableName} RENAME TO ${tableName}_old`)
-      await run(newTableSql)
-      await run(`INSERT INTO ${tableName} (${columns}) SELECT ${columns} FROM ${tableName}_old`)
-      await run(`DROP TABLE ${tableName}_old`)
-    }
-  }
-
-  await addColumnIfMissing('payrolls', 'status', "TEXT")
+  await addColumnIfMissing('payrolls', 'status', 'TEXT')
   await addColumnIfMissing('payrolls', 'approved_at', 'TEXT')
   await addColumnIfMissing('payrolls', 'paid_at', 'TEXT')
   await addColumnIfMissing('payrolls', 'approved_by_admin_id', 'INTEGER')
   await addColumnIfMissing('payrolls', 'created_at', 'TEXT')
   await addColumnIfMissing('payrolls', 'updated_at', 'TEXT')
 
-  await run(`UPDATE payrolls SET status='Draft' WHERE status IS NULL`)
-  await run(`UPDATE payrolls SET created_at=CURRENT_TIMESTAMP WHERE created_at IS NULL`)
-  await run(`UPDATE payrolls SET updated_at=CURRENT_TIMESTAMP WHERE updated_at IS NULL`)
+  await sqliteRun(`UPDATE payrolls SET status='Draft' WHERE status IS NULL`)
+  await sqliteRun(`UPDATE payrolls SET created_at=CURRENT_TIMESTAMP WHERE created_at IS NULL`)
+  await sqliteRun(`UPDATE payrolls SET updated_at=CURRENT_TIMESTAMP WHERE updated_at IS NULL`)
 
-  await run(`
+  await sqliteRun(`
     CREATE TABLE IF NOT EXISTS audit_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       actor_user_id INTEGER,
@@ -149,7 +168,7 @@ export async function initDb(){
     );
   `)
 
-  await run(`
+  await sqliteRun(`
     CREATE TABLE IF NOT EXISTS attendance_corrections (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       employee_id INTEGER NOT NULL,
@@ -190,7 +209,7 @@ export async function initDb(){
     'id, employee_id, date, reason, requested_check_in_time, requested_check_out_time, requested_status, admin_decision, admin_comment, decided_by_admin_id, decided_at, created_at'
   )
 
-  await run(`
+  await sqliteRun(`
     CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       key TEXT UNIQUE NOT NULL,
@@ -199,7 +218,7 @@ export async function initDb(){
     );
   `)
 
-  await run(`
+  await sqliteRun(`
     CREATE TABLE IF NOT EXISTS notifications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       recipient_employee_id INTEGER,
@@ -212,8 +231,7 @@ export async function initDb(){
     );
   `)
 
-
-  await run(`
+  await sqliteRun(`
     CREATE TABLE IF NOT EXISTS travel_orders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       employee_id INTEGER NOT NULL,
@@ -230,7 +248,7 @@ export async function initDb(){
     );
   `)
 
-  await run(`
+  await sqliteRun(`
     CREATE TABLE IF NOT EXISTS overtime_requests (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       employee_id INTEGER NOT NULL,
@@ -245,57 +263,78 @@ export async function initDb(){
     );
   `)
 
-
-
   // Seed default admin
-  const adminEmail = 'admin@example.com'
-  const adminPass = 'admin123'
-  const existing = await get(`SELECT id FROM users WHERE role='admin' AND email=?`, [adminEmail])
-  if(!existing){
+  const adminEmail = process.env.NEON_ADMIN_EMAIL || 'admin@example.com'
+  const adminPass = process.env.NEON_ADMIN_PASS || 'admin123'
+  const existing = await sqliteGet(`SELECT id FROM users WHERE role='admin' AND email=?`, [adminEmail])
+  if (!existing) {
     const passwordHash = await hashPassword(adminPass)
-    await run(
-      `INSERT INTO users (email, password_hash, role, employee_id, name) VALUES (?,?,?,?,?)`,
-      [adminEmail, passwordHash, 'admin', null, 'Administrator']
-    )
-    console.log('Seeded admin user admin@example.com / admin123')
+    await sqliteRun(`
+      INSERT INTO users (email, password_hash, role, employee_id, name)
+      VALUES (?,?,?,?,?)
+    `, [adminEmail, passwordHash, 'admin', null, 'Administrator'])
+    console.log(`Seeded admin user ${adminEmail} / ${adminPass}`)
   }
 }
 
-export function getDb(){
-  return db
+export function getDb() {
+  return sqliteDb
 }
 
-function run(sql, params=[]){
+// --- Public query helpers ---
+export async function exec(sql, params = []) {
+  if (isNeon()) {
+    const pool = ensureNeonPool()
+    await pool.query(sql, params)
+    return { lastID: undefined }
+  }
+  return sqliteRun(sql, params)
+}
+
+export async function getOne(sql, params = []) {
+  const res = await (isNeon() ? neonQuery(sql, params) : sqliteGet(sql, params))
+  return res
+}
+
+export async function all(sql, params = []) {
+  if (isNeon()) {
+    const res = await neonQuery(sql, params)
+    return Array.isArray(res?.rows) ? res.rows : res
+  }
+  return sqliteAll(sql, params)
+}
+
+// --- SQLite helpers ---
+function sqliteRun(sql, params = []) {
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err){
-      if(err) reject(err)
-      else resolve(this)
+    sqliteDb.run(sql, params, function (err) {
+      if (err) reject(err)
+      else resolve({ lastID: this.lastID })
     })
   })
 }
 
-function get(sql, params=[]){
+function sqliteGet(sql, params = []) {
   return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if(err) reject(err)
+    sqliteDb.get(sql, params, (err, row) => {
+      if (err) reject(err)
       else resolve(row)
     })
   })
 }
 
-export function all(sql, params=[]){
+function sqliteAll(sql, params = []) {
   return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if(err) reject(err)
+    sqliteDb.all(sql, params, (err, rows) => {
+      if (err) reject(err)
       else resolve(rows)
     })
   })
 }
 
-export function getOne(sql, params=[]){
-  return get(sql, params)
+async function neonQuery(sql, params) {
+  const pool = ensureNeonPool()
+  const res = await pool.query(sql, params)
+  return res
 }
 
-export function exec(sql, params=[]){
-  return run(sql, params)
-}
