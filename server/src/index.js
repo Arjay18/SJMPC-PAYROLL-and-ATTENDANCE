@@ -3,6 +3,8 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 
 import { initDb, getDb } from './lib/db.js'
+import { initNeonDb } from './lib/neonDb.js'
+
 import { authRouter } from './routes/authRoutes.js'
 import { adminRouter } from './routes/adminRoutes.js'
 import { employeeRouter } from './routes/employeeRoutes.js'
@@ -28,7 +30,13 @@ app.use(cors({
 }))
 app.use(express.json())
 
-await initDb()
+// If DATABASE_URL is present, initialize Neon/Postgres; otherwise fallback to SQLite.
+if (process.env.DATABASE_URL) {
+  await initNeonDb()
+} else {
+  await initDb()
+}
+
 
 app.get('/health', (req, res) => res.json({ ok: true }))
 

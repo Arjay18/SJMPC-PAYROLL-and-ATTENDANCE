@@ -4,6 +4,9 @@ import path from 'path'
 import dotenv from 'dotenv'
 import { hashPassword } from './password.js'
 
+// If DATABASE_URL is configured, auth/data should be handled by Neon/Postgres module.
+// This file remains as SQLite fallback.
+
 dotenv.config()
 
 let db
