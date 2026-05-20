@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "api/index.js": {
+    "api/*.js": {
       "maxDuration": 10
     }
   },
@@ -22,8 +22,8 @@
       "destination": "/api/index.js"
     },
     {
-      "source": "/(.*)",
-      "destination": "/client/$1"
+      "source": "/((?!api/).*)",
+      "destination": "/client/dist/index.html"
     }
   ]
 }
