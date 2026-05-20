@@ -39,11 +39,15 @@ app.use('/travel', travelRouter)
 app.use('/overtime', overtimeRouter)
 
 
-const port = Number(process.env.PORT || 4000)
+// In serverless environments (Vercel), do not start a listener.
+if (!process.env.VERCEL) {
+  const port = Number(process.env.PORT || 4000)
 
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`)
-})
+  app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`)
+  })
+}
+
 
 // Helpful for debugging in dev
 process.on('SIGINT', () => {
