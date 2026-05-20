@@ -17,7 +17,10 @@ export default function LoginPage(){
     setError(null)
     try{
       const res = await login(email, password)
-      const user = res.user
+      const user = res?.user
+
+      if (!user) throw new Error(res?.message || 'Login failed')
+
       if (user.role === 'employee' && user.is_default_password) {
         nav('/employee/change-password', { replace: true })
       } else {
