@@ -11,10 +11,7 @@ function isNeon() {
   return !!process.env.DATABASE_URL
 }
 
-
 dotenv.config()
-
-let dbMode = process.env.DATABASE_URL ? 'neon' : 'sqlite'
 
 // SQLite fallback connection
 let sqliteDb
@@ -23,9 +20,6 @@ function ensureNeonPool() {
   return getPool()
 }
 
-function isNeon() {
-  return dbMode === 'neon'
-}
 
 export async function initDb() {
   // Backward-compatible initializer: initNeonDb if configured, else SQLite.
