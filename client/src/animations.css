@@ -1,0 +1,44 @@
+:root{--animDur:420ms;--animEase:cubic-bezier(.2,.8,.2,1);}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+@keyframes floatIn{
+  from{opacity:0;transform:translateY(10px) scale(.99)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+
+@keyframes shimmer{
+  from{background-position:0% 50%}
+  to{background-position:100% 50%}
+}
+
+.page-animate{animation:floatIn var(--animDur) var(--animEase) both;}
+
+.glowBtn{
+  position:relative;
+}
+.glowBtn::after{
+  content:"";
+  position:absolute;inset:-1px;
+  border-radius:inherit;
+  background:linear-gradient(120deg, rgba(124,92,255,.0), rgba(124,92,255,.55), rgba(53,198,255,.55), rgba(124,92,255,.0));
+  background-size:200% 200%;
+  opacity:0;
+  filter:blur(6px);
+  transition:opacity .2s ease;
+  z-index:-1;
+}
+.glowBtn:hover::after{opacity:.65;animation:shimmer 1.2s linear infinite;}
+
+.tableFadeIn{animation:floatIn 520ms var(--animEase) both;}
+
+@keyframes mesh-drift {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.1) translate(-2%, 2%);
+  }
+  100% {
+    transform: scale(1) translate(0, 0);
+  }
+}
