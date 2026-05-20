@@ -1,7 +1,10 @@
 // This file acts as the entry point for Vercel Serverless Functions
-// It imports the Express app from your server folder and exports it
-const app = require('../server/index.js');
+// It loads the Express app from your ESM server and forwards the request.
 
-module.exports = (req, res) => {
-  return app(req, res);
-};
+module.exports = async (req, res) => {
+  const app = await import('./server/src/index.js')
+  // server/src/index.js exports `app` by default as side-effect; for safety support both shapes
+  const expressApp = app?.default ?? app
+  return expressApp(req, res)
+}
+
