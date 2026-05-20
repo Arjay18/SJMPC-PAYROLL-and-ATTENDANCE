@@ -13,6 +13,10 @@ import { overtimeRouter } from './routes/overtimeRoutes.js'
 dotenv.config()
 
 const app = express()
+
+// Export app for serverless environments (Vercel)
+export { app }
+
 const allowedOrigins = process.env.CLIENT_ORIGIN?.split(',')?.map(s => s.trim()) || ['http://localhost:5173']
 app.use(cors({
   origin: (origin, callback) => {
