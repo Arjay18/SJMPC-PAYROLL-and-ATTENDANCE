@@ -34,7 +34,10 @@ app.use(express.json())
 if (process.env.DATABASE_URL) {
   await initNeonDb()
 } else {
-  await initDb()
+await initDb()
+
+  // Neon/Postgres init happens inside initDb/neonDb depending on env.
+
 }
 
 
