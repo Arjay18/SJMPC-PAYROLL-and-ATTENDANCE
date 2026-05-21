@@ -327,8 +327,12 @@ function sqliteAll(sql, params = []) {
 }
 
 async function neonQuery(sql, params) {
+  // Debug: helps identify malformed SQL being sent to Neon/Postgres
+  console.log('[NEON QUERY]', { sql: String(sql).slice(0, 5000), params })
   const pool = ensureNeonPool()
   const res = await pool.query(sql, params)
   return res
 }
+
+
 
