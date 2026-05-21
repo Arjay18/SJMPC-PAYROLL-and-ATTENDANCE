@@ -31,12 +31,16 @@ app.use(cors({
 app.use(express.json())
 
 // If DATABASE_URL is present, initialize Neon/Postgres; otherwise fallback to SQLite.
-if (process.env.DATABASE_URL) {
+const hasDbUrl = !!process.env.DATABASE_URL
+const hasJwt = !!process.env.JWT_SECRET
+console.log('[DB INIT]', { hasDbUrl, hasJwt, hasClientOrigin: !!process.env.CLIENT_ORIGIN })
+if (hasDbUrl) {
   console.log('[DB INIT] DATABASE_URL present (Neon/Postgres)')
   await initNeonDb()
 } else {
   console.log('[DB INIT] DATABASE_URL missing (fallback to SQLite)')
   await initDb()
+
 
 
   // Neon/Postgres init happens inside initDb/neonDb depending on env.
