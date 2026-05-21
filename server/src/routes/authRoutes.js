@@ -21,8 +21,9 @@ authRouter.post('/login', async (req, res) => {
     SELECT u.id, u.email, u.role, u.employee_id, u.name, u.password_hash, u.is_default_password, e.branch 
     FROM users u 
     LEFT JOIN employees e ON u.employee_id = e.id 
-    WHERE u.email=?
+    WHERE u.email=$1
   `, [email])
+
 
   if(!user) return res.status(401).json({ message:'Invalid credentials' })
 
@@ -66,8 +67,9 @@ authRouter.get('/me', async (req, res) => {
       SELECT u.id, u.email, u.role, u.employee_id, u.name, e.branch 
       FROM users u 
       LEFT JOIN employees e ON u.employee_id = e.id 
-      WHERE u.id=?
+      WHERE u.id=$1
     `, [payload.userId])
+
 
     if(!me) return res.status(401).json({ message:'Invalid user' })
     res.json({ id: me.id, role: me.role, employee_id: me.employee_id, name: me.name, email: me.email, branch: me.branch })
