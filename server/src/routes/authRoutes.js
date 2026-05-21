@@ -3,6 +3,14 @@ import jwt from 'jsonwebtoken'
 import { getOne } from '../lib/db.js'
 import { verifyPassword } from '../lib/password.js'
 
+function normalizeUser(u) {
+  return {
+    ...u,
+    is_default_password: Number(u.is_default_password ?? 0),
+  }
+}
+
+
 export const authRouter = express.Router()
 
 authRouter.post('/login', async (req, res) => {
@@ -10,7 +18,7 @@ authRouter.post('/login', async (req, res) => {
   if(!email || !password) return res.status(400).json({ message:'Email and password required' })
 
   const user = await getOne(`
-    SELECT u.id, u.email, u.role, u.employee_id, u.name, u.password_hash, e.branch 
+    SELECT u.id, u.email, u.role, u.employee_id, u.name, u.password_hash, u.is_default_password, e.branch 
     FROM users u 
     LEFT JOIN employees e ON u.employee_id = e.id 
     WHERE u.email=?
@@ -18,7 +26,11 @@ authRouter.post('/login', async (req, res) => {
 
   if(!user) return res.status(401).json({ message:'Invalid credentials' })
 
-  const ok = await verifyPassword(password, user.password_hash)
+  const normalized = normalizeUser(user)
+
+
+  const ok = await verifyPassword(password, normalized.password_hash)
+
   if(!ok) return res.status(401).json({ message:'Invalid credentials' })
 
   if (!process.env.JWT_SECRET) {
@@ -31,12 +43,14 @@ authRouter.post('/login', async (req, res) => {
   res.json({
     token,
     user: {
-      id: user.id,
-      role: user.role,
-      employee_id: user.employee_id,
-      name: user.name,
-      email: user.email,
-      branch: user.branch
+      id: normalized.id,
+      role: normalized.role,
+      employee_id: normalized.employee_id,
+      name: normalized.name,
+      email: normalized.email,
+      branch: normalized.branch,
+      is_default_password: normalized.is_default_password,
+
     }
   })
 })

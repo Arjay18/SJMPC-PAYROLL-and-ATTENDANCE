@@ -16,11 +16,13 @@ export function getPool() {
 
     pool = new Pool({
       connectionString,
-      ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false },
+      // Neon usually requires SSL.
+      ssl: { rejectUnauthorized: false },
     })
   }
   return pool
 }
+
 
 export async function initNeonDb() {
   const p = getPool()
