@@ -18,10 +18,7 @@
   "buildCommand": "cd client && npm run build --silent",
   "outputDirectory": "client/dist",
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/health"
-    },
+
     {
       "source": "/((?!api/).*)",
       "destination": "client/dist/index.html"
