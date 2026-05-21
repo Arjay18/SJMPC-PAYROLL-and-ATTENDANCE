@@ -17,7 +17,8 @@
 
 
   "buildCommand": "cd client && npm run build --silent",
-  "outputDirectory": "client/dist", 
+  "outputDirectory": "client/dist"
+
 
 
 
