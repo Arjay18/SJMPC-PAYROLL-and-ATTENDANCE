@@ -286,17 +286,21 @@ export async function exec(sql, params = []) {
 }
 
 export async function getOne(sql, params = []) {
-  const res = await (isNeon() ? neonQuery(sql, params) : sqliteGet(sql, params))
-  return res
+  if (isNeon()) {
+    const res = await neonQuery(sql, params)
+    return res?.rows?.[0] ?? null
+  }
+  return sqliteGet(sql, params)
 }
 
 export async function all(sql, params = []) {
   if (isNeon()) {
     const res = await neonQuery(sql, params)
-    return Array.isArray(res?.rows) ? res.rows : res
+    return Array.isArray(res?.rows) ? res.rows : []
   }
   return sqliteAll(sql, params)
 }
+
 
 // --- SQLite helpers ---
 function sqliteRun(sql, params = []) {
